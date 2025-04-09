@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Canvas Shooter</title>
+  <style>
+    canvas {
+      background: linear-gradient(to top, #3cba54 60%, #87ceeb 60%);
+      display: block;
+      margin: 0 auto;
+    }
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+    #lobby, #instructions, #difficulty {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 2;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 20px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    #mobileControls button {
+    padding: 15px 20px;
+    margin: 5px;
+    font-size: 18px;
+    border-radius: 10px;
+    border: none;
+    background: #333;
+    color: white;
+  }
+  #mobileControls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    z-index: 3;
+  }
+  </style>
+</head>
+<body>
+  <div id="lobby">
+    <h1>Welcome to Landscape Shooter</h1>
+    <p>Arrow up = Jump</p>
+    <p>Arrow down = Crouch</p>
+    <p>Arrow left = Walk backward</p>
+    <p>Arrow right = Walk forward</p>
+    <p>Spacebar = Shoot</p>
+    <button onclick="showDifficulty()">Start Game</button>
+  </div>
+
+  <div id="difficulty" style="display: none;">
+
+    <h2>Select Difficulty</h2>
+    <button onclick="selectDifficulty('easy')">Easy</button>
+    <button onclick="selectDifficulty('medium')">Medium</button>
+    <button onclick="selectDifficulty('hard')">Hard</button>
+  </div>
+
+  <canvas id="gameCanvas" width="1000" height="500"></canvas>
+  <div id="mobileControls" style="display: none; margin-top: 10px;">
+    <button ontouchstart="pressKey('ArrowLeft')" ontouchend="releaseKey('ArrowLeft')"
+            onmousedown="pressKey('ArrowLeft')" onmouseup="releaseKey('ArrowLeft')">⬅️</button>
+  
+    <button ontouchstart="pressKey('ArrowRight')" ontouchend="releaseKey('ArrowRight')"
+            onmousedown="pressKey('ArrowRight')" onmouseup="releaseKey('ArrowRight')">➡️</button>
+  
+    <button ontouchstart="pressKey('ArrowUp')" ontouchend="releaseKey('ArrowUp')"
+            onmousedown="pressKey('ArrowUp')" onmouseup="releaseKey('ArrowUp')">⬆️</button>
+  
+    <button ontouchstart="pressKey('ArrowDown')" ontouchend="releaseKey('ArrowDown')"
+            onmousedown="pressKey('ArrowDown')" onmouseup="releaseKey('ArrowDown')">⬇️</button>
+  
+    <button ontouchstart="pressKey(' ')" ontouchend="releaseKey(' ')"
+            onmousedown="pressKey(' ')" onmouseup="releaseKey(' ')">🔫 Shoot</button>
+  </div>
+  
+  <audio id="shootSound" src="sound/shoot.mp3"></audio>
+  <audio id="powerupSound" src="sound/power.mp3"></audio>
+  <audio id="bgMusic" loop src="sound/bgMusic.mp3"></audio>
+  <audio id="hitSound" src="sound/bruh.mp3"></audio>
+  <audio id="jump" src="sound/jump.mp3"></audio>
+  <audio id="crouch" src="sound/crouch.mp3"></audio>
+  <audio id="bugatti" src="sound/bugatti.mp3"></audio>
+  <audio id="omg" src="sound/omg.mp3"></audio>
+  
+  
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.style.display = 'none';
+
+    let DIFFICULTY_LEVEL = 'medium';
+
+    function showDifficulty() {
+      document.getElementById('lobby').style.display = 'none';
+      document.getElementById('difficulty').style.display = 'flex';
+    }
+
+    function selectDifficulty(level) {
+      DIFFICULTY_LEVEL = level;
+      if (level === 'easy') {
+        ENEMY_SPAWN_RATE = 3500;
+        ENEMY_BULLET_SPEED = 2;
+        PLAYER_JUMP_POWER = -14;
+        ENEMY_FIRE_RATE = 0.002;
+      } else if (level === 'medium') {
+        ENEMY_SPAWN_RATE = 2000;
+        ENEMY_BULLET_SPEED = 4;
+        PLAYER_JUMP_POWER = -11;
+        ENEMY_FIRE_RATE = 0.01;
+      } else {
+        ENEMY_SPAWN_RATE = 1200;
+        ENEMY_BULLET_SPEED = 6;
+        PLAYER_JUMP_POWER = -9;
+        ENEMY_FIRE_RATE = 0.02;
+      }
+      document.getElementById('difficulty').style.display = 'none';
+      startGame();
+    }
+
+    function startGame() {
+      document.getElementById('mobileControls').style.display = 'block';
+      bugatti.loop = false;
+      bugatti.currentTime = 0;
+      bugatti.play();
+      bgMusic.volume = 0.1;
+      bgMusic.play();
+      canvas.style.display = 'block';
+      setInterval(spawnEnemy, ENEMY_SPAWN_RATE);
+      setInterval(spawnPowerUp, 10000);
+      gameLoop();
+    }
+
+    function spawnPowerUp() {
+      powerUps.push({
+        x: canvas.width,
+        y: groundY - 40,
+        width: 20,
+        height: 20
+      });
+    }5
+
+    let keys = {};
+    let bullets = [];
+    let enemyBullets = [];
+    let enemies = [];
+    let powerUps = [];
+    let score = 0;
+    let gameOver = false;
+    let machineGun = false;
+    let machineGunTimer = 10;
+    let ENEMY_SPAWN_RATE = 2000;
+    let ENEMY_BULLET_SPEED = 4;
+    let PLAYER_JUMP_POWER = -11;
+    let ENEMY_FIRE_RATE = 0.01;
+    const shootSound = document.getElementById('shootSound');
+
+    const gravity = 0.5;
+    const groundY = canvas.height - 60;
+
+    const player = {
+      x: 100,
+      y: groundY,
+      width: 50,
+      height: 50,
+      vy: 0,
+      isJumping: false,
+      isCrouching: false,
+      speed: 5
+    };
+
+    function drawPlayer() {
+      ctx.fillStyle = 'lime';
+      const height = player.isCrouching ? 5 : 50;
+      ctx.fillRect(player.x, player.y + (50 - height), player.width, height);
+    }
+
+    function drawBullets() {
+      ctx.fillStyle = 'red';
+      bullets.forEach((b, index) => {
+        b.x += b.speed;
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        if (b.x > canvas.width) bullets.splice(index, 1);
+      });
+    }
+
+    function drawEnemyBullets() {
+      ctx.fillStyle = 'yellow';
+      enemyBullets.forEach((b, i) => {
+        b.x -= b.speed;
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+
+        if (b.x + b.width < 0) enemyBullets.splice(i, 1);
+
+        const height = player.isCrouching ? 5 : 50;
+        if (b.x < player.x + player.width && b.x + b.width > player.x &&
+            b.y < player.y + height && b.y + b.height > player.y + (50 - height)) {
+          gameOver = true;
+        }
+      });
+    }
+
+    function drawEnemies() {
+      ctx.fillStyle = 'red';
+      enemies.forEach((e, i) => {
+        ctx.fillRect(e.x, e.y, e.width, e.height);
+        e.x -= 2;
+
+        if (Math.random() < ENEMY_FIRE_RATE) {
+          enemyBullets.push({
+            x: e.x,
+            y: e.y + e.height / 2,
+            width: 10,
+            height: 5,
+            speed: ENEMY_BULLET_SPEED
+          });
+        }
+
+        bullets.forEach((b, j) => {
+          if (b.x < e.x + e.width && b.x + b.width > e.x &&
+              b.y < e.y + e.height && b.y + b.height > e.y) {
+            enemies.splice(i, 1);
+            bullets.splice(j, 1);
+            score += 10;
+          }
+        });
+        hitSound.play();
+      });
+    }
+
+    function drawTerrainDecorations() {
+      // Sun
+      ctx.beginPath();
+      ctx.arc(900, 100, 40, 0, Math.PI * 2);
+      ctx.fillStyle = 'yellow';
+      ctx.fill();
+
+      // Clouds
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(200, 80, 20, 0, Math.PI * 2);
+      ctx.arc(220, 80, 30, 0, Math.PI * 2);
+      ctx.arc(250, 80, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(600, 60, 25, 0, Math.PI * 2);
+      ctx.arc(630, 60, 30, 0, Math.PI * 2);
+      ctx.arc(660, 60, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Trees
+      ctx.fillStyle = '#8B4513'; // trunk
+      for (let i = 0; i < canvas.width; i += 200) {
+        ctx.fillRect(i + 100, groundY - 40, 10, 40);
+        ctx.fillStyle = 'green';
+        ctx.beginPath();
+        ctx.arc(i + 105, groundY - 50, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#8B4513';
+      }
+    }
+
+    function spawnEnemy() {
+      enemies.push({
+        x: canvas.width,
+        y: groundY,
+        width: 40,
+        height: 50
+      });
+    }
+
+    function drawPowerUps() {
+      ctx.fillStyle = 'cyan';
+      powerUps.forEach((p, i) => {
+        p.x -= 3;
+        ctx.fillRect(p.x, p.y, p.width, p.height);
+
+        if (p.x < 0) powerUps.splice(i, 1);
+
+        if (p.x < player.x + player.width && p.x + p.width > player.x &&
+            p.y < player.y + player.height && p.y + p.height > player.y) {
+          machineGun = true;
+          machineGunTimer = 300;
+          powerUps.splice(i, 1);
+        }
+        powerupSound.play();
+      });
+    }
+
+    function drawHUD() {
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText('Score: ' + score, 10, 30);
+      if (machineGun) ctx.fillText('Machine Gun Active!', 10, 60);
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = 'white';
+      ctx.font = '40px Arial';
+      ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+      omg.play();
+    }
+
+    function update() {
+      if (keys['ArrowLeft']) player.x -= player.speed;
+      if (keys['ArrowRight']) player.x += player.speed;
+
+      player.isCrouching = keys['ArrowDown'];
+      if(!player.isCrouching){
+        crouch.currentTime = 0;
+        crouch.play();
+      }
+
+      if (keys['ArrowUp'] && !player.isJumping) {
+        player.vy = PLAYER_JUMP_POWER;
+        player.isJumping = true;
+        jump.play();
+      }
+
+      player.vy += gravity;
+      player.y += player.vy;
+
+      if (player.y >= groundY) { 
+        player.y = groundY;
+        player.vy = 0;
+        player.isJumping = false;
+      }
+
+      if (machineGun && keys[' ']) {
+        if (machineGunTimer % 5 === 0) shootBullet();
+        machineGunTimer--;
+        if (machineGunTimer <= 0) machineGun = false;
+      }
+    }
+
+    function shootBullet() {
+      bullets.push({
+        x: player.x + player.width,
+        y: player.y + (player.isCrouching ? 45 : 25),
+        width: 10,
+        height: 5,
+        speed: 8
+      });
+      
+      shootSound.currentTime = 0;
+      shootSound.play();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawTerrainDecorations();
+      drawPlayer();
+      drawBullets();
+      drawEnemies();
+      drawEnemyBullets();
+      drawPowerUps();
+      drawHUD();
+      if (gameOver) drawGameOver();
+    }
+
+    function gameLoop() {
+      if (!gameOver) {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      } else {
+        drawGameOver();
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      keys[e.key] = true;
+      if (e.key === ' ' && !machineGun) shootBullet();
+    });
+
+    window.addEventListener('keyup', e => {
+      keys[e.key] = false;
+    });
+
+    function pressKey(key) {
+  keys[key] = true;
+  if (key === ' ' && !machineGun) shootBullet();
+}
+
+function releaseKey(key) {
+  keys[key] = false;
+}
+
+  </script>
+</body>
+</html>
